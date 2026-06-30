@@ -64,7 +64,8 @@ jobs:
           set -e
           export THEOS=/Users/runner/theos
           export SDKROOT=$SDKROOT
-          echo "Forcing make with THEOS=/Users/runner/theos"
+          export PATH="$THEOS/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+          echo "Forcing make with THEOS=/Users/runner/theos and PATH including Theos bin (for dm.pl)"
           make THEOS=/Users/runner/theos clean package
           echo ""
           echo "=== Build complete. Artifacts produced: ==="
