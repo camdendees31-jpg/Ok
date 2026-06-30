@@ -28,7 +28,7 @@ jobs:
           echo ""
           echo "All source files detected. 'make package' will now compile using exactly these files."
 
-      - name: Setup Theos (FORCE fresh clone + full debug ls)
+      - name: Setup Theos (FORCE fresh clone + submodule for dm.pl + chmod)
         run: |
           set -e
           rm -rf $THEOS
@@ -38,21 +38,28 @@ jobs:
           echo ""
           echo "=== DEBUG: Full contents of $THEOS after clone ==="
           ls -la $THEOS
+
+          # Fix the dm.pl symlink (it points to vendor/dm.pl/dm.pl)
+          git -C $THEOS submodule update --init --recursive --depth=1 || true
+          chmod +x $THEOS/bin/dm.pl || true
+          chmod +x $THEOS/vendor/dm.pl/dm.pl || true
+
           echo ""
-          echo "=== DEBUG: makefiles/ directory ==="
-          ls -la $THEOS/makefiles || echo "makefiles/ dir does not exist!"
+          echo "=== DEBUG after submodule + chmod ==="
+          ls -l $THEOS/bin/dm.pl || echo "dm.pl symlink still broken"
+          ls -l $THEOS/vendor/dm.pl/dm.pl || echo "vendor target missing"
 
           if [ ! -f "$THEOS/makefiles/common.mk" ]; then
-            echo "FATAL: common.mk missing even after ls above. Clone incomplete."
+            echo "FATAL: common.mk missing."
             exit 1
           fi
-          echo "Theos verified - common.mk exists at $THEOS/makefiles/common.mk"
+          echo "Theos verified."
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
           export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           echo "THEOS=$THEOS" >> $GITHUB_ENV
           echo "SDKROOT=$SDKROOT" >> $GITHUB_ENV
-          echo "Theos setup complete. The ls output above is what the build step will see."
+          echo "Theos + dm.pl fix complete."
 
       - name: Install build tools
         run: |
@@ -69,8 +76,8 @@ jobs:
           echo "THEOS=$THEOS"
           echo "PATH=$PATH"
           echo "which dm.pl: $(which dm.pl || echo 'dm.pl NOT FOUND')"
-          ls -l $THEOS/bin/dm.pl || echo "dm.pl file missing in Theos bin/"
-          echo "Forcing make with explicit env..."
+          ls -l $THEOS/bin/dm.pl || echo "dm.pl symlink missing"
+          echo "Forcing make..."
           THEOS=/Users/runner/theos PATH="$THEOS/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" make THEOS=/Users/runner/theos clean package
           echo ""
           echo "=== Build complete. Artifacts produced: ==="
