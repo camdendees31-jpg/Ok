@@ -1,0 +1,8 @@
+Package: com.seraph.robloxupdatebypass
+Name: Roblox Update Bypass
+Depends: mobilesubstrate, firmware (>= 14.0)
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Bypasses the forced "App Update is Required" message in the Roblox iOS app by intercepting update prompts and spoofing version info.
+Author: made by seraph
+Section: Tweaks
