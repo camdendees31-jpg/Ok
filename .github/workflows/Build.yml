@@ -28,17 +28,26 @@ jobs:
           echo ""
           echo "All source files detected. 'make package' will now compile using exactly these files."
 
-      - name: Setup Theos (clone + configure for arm64 iOS)
+      - name: Setup Theos (FORCE fresh clone every run + verify)
         run: |
+          set -e
+          rm -rf $THEOS
           mkdir -p $THEOS
-          if [ ! -d "$THEOS/.git" ]; then
-            git clone --depth=1 https://github.com/theos/theos.git $THEOS
+          git clone --depth=1 https://github.com/theos/theos.git $THEOS
+          
+          # Hard verification that common.mk exists
+          if [ ! -f "$THEOS/makefiles/common.mk" ]; then
+            echo "FATAL: Theos clone failed or incomplete. common.mk missing."
+            ls -la $THEOS
+            exit 1
           fi
+          echo "Theos cloned and verified successfully."
+
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
           export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           echo "THEOS=$THEOS" >> $GITHUB_ENV
           echo "SDKROOT=$SDKROOT" >> $GITHUB_ENV
-          echo "Theos + SDK ready. The tweak sources (Tweak.xm etc.) will be built against this."
+          echo "Theos + SDK ready. Source files (Tweak.xm etc.) will be built against this Theos."
 
       - name: Install build tools
         run: |
@@ -47,13 +56,13 @@ jobs:
 
       - name: Build the .deb using the provided Makefile + Tweak.xm + control
         run: |
+          set -e
           export THEOS=$THEOS
           export SDKROOT=$SDKROOT
-          make clean || true
-          make package
+          make clean package
           echo ""
           echo "=== Build complete. Artifacts produced: ==="
-          ls -la packages/ 2>/dev/null || echo "packages/ directory not found (see make logs above for errors)"
+          ls -la packages/ 2>/dev/null || echo "packages/ directory not found (see make logs above)"
 
       - name: Upload final .deb artifact
         uses: actions/upload-artifact@v4
