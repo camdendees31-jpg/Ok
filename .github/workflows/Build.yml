@@ -65,8 +65,13 @@ jobs:
           export THEOS=/Users/runner/theos
           export SDKROOT=$SDKROOT
           export PATH="$THEOS/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
-          echo "Forcing make with THEOS=/Users/runner/theos and PATH including Theos bin (for dm.pl)"
-          make THEOS=/Users/runner/theos clean package
+          echo "=== DEBUG in build step ==="
+          echo "THEOS=$THEOS"
+          echo "PATH=$PATH"
+          echo "which dm.pl: $(which dm.pl || echo 'dm.pl NOT FOUND')"
+          ls -l $THEOS/bin/dm.pl || echo "dm.pl file missing in Theos bin/"
+          echo "Forcing make with explicit env..."
+          THEOS=/Users/runner/theos PATH="$THEOS/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" make THEOS=/Users/runner/theos clean package
           echo ""
           echo "=== Build complete. Artifacts produced: ==="
           ls -la packages/ 2>/dev/null || echo "packages/ directory not found (see make logs above)"
