@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: macos-latest
     env:
-      THEOS: ~/theos
+      THEOS: /Users/runner/theos
     steps:
       - name: Checkout repository (brings in Makefile + control + Tweak.xm)
         uses: actions/checkout@v4
@@ -28,26 +28,31 @@ jobs:
           echo ""
           echo "All source files detected. 'make package' will now compile using exactly these files."
 
-      - name: Setup Theos (FORCE fresh clone every run + verify)
+      - name: Setup Theos (FORCE fresh clone + full debug ls)
         run: |
           set -e
           rm -rf $THEOS
           mkdir -p $THEOS
           git clone --depth=1 https://github.com/theos/theos.git $THEOS
           
-          # Hard verification that common.mk exists
+          echo ""
+          echo "=== DEBUG: Full contents of $THEOS after clone ==="
+          ls -la $THEOS
+          echo ""
+          echo "=== DEBUG: makefiles/ directory ==="
+          ls -la $THEOS/makefiles || echo "makefiles/ dir does not exist!"
+
           if [ ! -f "$THEOS/makefiles/common.mk" ]; then
-            echo "FATAL: Theos clone failed or incomplete. common.mk missing."
-            ls -la $THEOS
+            echo "FATAL: common.mk missing even after ls above. Clone incomplete."
             exit 1
           fi
-          echo "Theos cloned and verified successfully."
+          echo "Theos verified - common.mk exists at $THEOS/makefiles/common.mk"
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
           export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           echo "THEOS=$THEOS" >> $GITHUB_ENV
           echo "SDKROOT=$SDKROOT" >> $GITHUB_ENV
-          echo "Theos + SDK ready. Source files (Tweak.xm etc.) will be built against this Theos."
+          echo "Theos setup complete. The ls output above is what the build step will see."
 
       - name: Install build tools
         run: |
@@ -57,9 +62,10 @@ jobs:
       - name: Build the .deb using the provided Makefile + Tweak.xm + control
         run: |
           set -e
-          export THEOS=$THEOS
+          export THEOS=/Users/runner/theos
           export SDKROOT=$SDKROOT
-          make clean package
+          echo "Forcing make with THEOS=/Users/runner/theos"
+          make THEOS=/Users/runner/theos clean package
           echo ""
           echo "=== Build complete. Artifacts produced: ==="
           ls -la packages/ 2>/dev/null || echo "packages/ directory not found (see make logs above)"
