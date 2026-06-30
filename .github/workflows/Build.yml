@@ -1,0 +1,72 @@
+name: Build Roblox Update Bypass .deb (Theos)
+
+on:
+  push:
+    branches: [ main, master, roblox-bypass, ci-test ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      THEOS: ~/theos
+    steps:
+      - name: Checkout repository (brings in Makefile + control + Tweak.xm)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify source files are present and will be used
+        run: |
+          echo "=== Files in $GITHUB_WORKSPACE ==="
+          ls -la
+          echo ""
+          echo "=== Explicitly confirming the three core files exist ==="
+          test -f Makefile && echo "✓ Makefile present" || { echo "✗ Missing Makefile"; exit 1; }
+          test -f control && echo "✓ control present" || { echo "✗ Missing control"; exit 1; }
+          test -f Tweak.xm && echo "✓ Tweak.xm present" || { echo "✗ Missing Tweak.xm"; exit 1; }
+          echo ""
+          echo "All source files detected. 'make package' will now compile using exactly these files."
+
+      - name: Setup Theos (clone + configure for arm64 iOS)
+        run: |
+          mkdir -p $THEOS
+          if [ ! -d "$THEOS/.git" ]; then
+            git clone --depth=1 https://github.com/theos/theos.git $THEOS
+          fi
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
+          export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "THEOS=$THEOS" >> $GITHUB_ENV
+          echo "SDKROOT=$SDKROOT" >> $GITHUB_ENV
+          echo "Theos + SDK ready. The tweak sources (Tweak.xm etc.) will be built against this."
+
+      - name: Install build tools
+        run: |
+          brew update
+          brew install make ldid dpkg coreutils
+
+      - name: Build the .deb using the provided Makefile + Tweak.xm + control
+        run: |
+          export THEOS=$THEOS
+          export SDKROOT=$SDKROOT
+          make clean || true
+          make package
+          echo ""
+          echo "=== Build complete. Artifacts produced: ==="
+          ls -la packages/ 2>/dev/null || echo "packages/ directory not found (see make logs above for errors)"
+
+      - name: Upload final .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobloxUpdateBypass-${{ github.run_number }}
+          path: packages/*.deb
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Upload dylib (for direct Frida / injection use)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobloxUpdateBypass-dylib-${{ github.run_number }}
+          path: .theos/obj/arm64/*.dylib
+          retention-days: 90
+          if-no-files-found: ignore
